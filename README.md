@@ -1,5 +1,5 @@
-# Spicy Topping Issue Tracker
-This is where any issues (as well as some things I intend to do in the future) in Spicy Topping are tracked and is also the place where you can report them (alternatively, you may do so in the Discord server in the spicy-bugs channel, where I will then make an issue here)
+# Spicy Topping
+This repo is simply used for the preview images in Pizza Oven for The Spicy Topping.
 
-Join the Discord to get access to early builds of Spicy Topping:
+It was initially used for bug tracking and for some time suggestion tracking but all of that is now tracked in the Discord server, which you may find here:
 https://discord.gg/NDqAfhF294
