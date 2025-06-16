@@ -22,7 +22,7 @@ using UndertaleModLib.Util;
 
 EnsureDataLoaded();
 
-string outputPath = $"{Path.GetDirectoryName(FilePath)}\\ExportedRooms\\";
+string outputPath = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedRooms\\";
 if (outputPath == null) throw new ScriptException("The room exporter's output path was not set.");
 
 Directory.CreateDirectory(Path.Combine(outputPath, "Rooms"));
