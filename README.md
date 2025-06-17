@@ -1,8 +1,6 @@
-This repo is simply used for the preview images in Pizza Oven for The Spicy Topping.  
+This repo is used for the preview images in Pizza Oven for The Spicy Topping and also is where important scripts for the UTMT features in the mod are downloaded from.  
 
-The ExportRooms.csx script is also located here since I don't have any better place where to put it.  
-And the script itself was taken from the [UTMTCE repo](https://github.com/XDOneDude/UndertaleModToolCE/) (and then was slightly updated by me):
-
+The ExportRooms script was taken from the [UTMTCE repo](https://github.com/XDOneDude/UndertaleModToolCE/), with slight edits done by me.
 
 Discord:
 https://discord.gg/NDqAfhF294
