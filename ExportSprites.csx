@@ -9,6 +9,7 @@
 // revision 2: handle breaking Magick.NET changes
 
 // edited by basiccube to work with CLI with no user input
+// and to ignore certain PT sprites since this already takes 6000 years
 
 using System;
 using System.Collections.Generic;
@@ -27,31 +28,46 @@ if (folder is null)
 {
     return;
 }
-
-string textPath = $"{AppDomain.CurrentDomain.BaseDirectory}spritestoexport.txt";
-string filter = "";
-using (StreamReader reader = new StreamReader(textPath))
+if (!Directory.Exists(folder))
 {
-	filter = reader.ReadLine();
+	Directory.CreateDirectory(folder);
 }
 
-await ExtractSprites(folder, filter);
+await ExtractSprites(folder);
 
-async Task ExtractSprites(string folder, string prefix)
+async Task ExtractSprites(string folder)
 {
     using TextureWorker worker = new TextureWorker();
-    IList<UndertaleSprite> sprites = Data.Sprites;
-    if (prefix != "")
-    {
-        sprites = new List<UndertaleSprite> { };
-        foreach (UndertaleSprite sprite in Data.Sprites)
-        {
-            if (sprite.Name.Content.StartsWith(prefix))
-            {
-                sprites.Add(sprite);
-            }
-        }
-    }
+    IList<UndertaleSprite> sprites = new List<UndertaleSprite> { };
+    foreach (UndertaleSprite sprite in Data.Sprites)
+	{
+		if (!sprite.Name.Content.StartsWith("spr_player") &&
+			!sprite.Name.Content.StartsWith("spr_snick_") &&
+			!sprite.Name.Content.StartsWith("spr_bombpep") &&
+			!sprite.Name.Content.StartsWith("spr_cheesepep") &&
+			!sprite.Name.Content.StartsWith("spr_knightpep") &&
+			!sprite.Name.Content.StartsWith("spr_manual") &&
+			!sprite.Name.Content.StartsWith("spr_climbstairs") &&
+			!sprite.Name.Content.StartsWith("spr_pepinoHUD") &&
+			!sprite.Name.Content.StartsWith("tile_") &&
+			!sprite.Name.Content.StartsWith("spr_shotgun_") &&
+			!sprite.Name.Content.StartsWith("spr_boxxedpep") &&
+			!sprite.Name.Content.StartsWith("spr_hungrypillar") &&
+			!sprite.Name.Content.StartsWith("spr_noise") &&
+			!sprite.Name.Content.StartsWith("spr_rank") &&
+			!sprite.Name.Content.StartsWith("spr_sausageman") &&
+			!sprite.Name.Content.StartsWith("spr_pepperman") &&
+			!sprite.Name.Content.StartsWith("spr_pizzagoblin") &&
+			!sprite.Name.Content.StartsWith("spr_rail") &&
+			!sprite.Name.Content.StartsWith("spr_slime") &&
+			!sprite.Name.Content.StartsWith("spr_toppin") &&
+			!sprite.Name.Content.StartsWith("spr_tv_") &&
+			!sprite.Name.Content.StartsWith("spr_xmas") &&
+			sprite.Textures.Count != 0)
+		{
+			sprites.Add(sprite);
+		}
+	}
 
     SetProgressBar(null, "Exporting sprites to GIF...", 0, sprites.Count);
     StartProgressBarUpdater();
@@ -64,14 +80,14 @@ async Task ExtractSprites(string folder, string prefix)
             Parallel.ForEach(sprites, (sprite) => 
             {
                 IncrementProgressParallel();
-                ExtractSprite(sprite, folder, worker);
+				ExtractSprite(sprite, folder, worker);
             });
         } 
         else 
         {
             foreach (UndertaleSprite sprite in sprites) 
             {
-                ExtractSprite(sprite, folder, worker);
+				ExtractSprite(sprite, folder, worker);
                 IncrementProgressParallel();
             }
         }
