@@ -134,7 +134,15 @@ void ExtractSprite(UndertaleSprite sprite, string folder, TextureWorker worker)
             gif.Add(image);
         }
     }
-    gif.Optimize();
+	
+	try
+	{
+		gif.Optimize();
+	}
+	catch (Exception e)
+	{
+		// oopsies it failed :)
+	}
     gif.Write(Path.Join(folder, sprite.Name.Content + ".gif"));
 	
 	// write JSON for sprite origins
