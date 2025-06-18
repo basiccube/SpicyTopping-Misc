@@ -10,11 +10,14 @@
 
 // edited by basiccube to work with CLI with no user input
 // and to ignore certain PT sprites since this already takes 6000 years
+// 06-18: added sprite origin exporting
 
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using UndertaleModLib.Models;
 using UndertaleModLib.Util;
@@ -33,6 +36,8 @@ if (!Directory.Exists(folder))
 	Directory.CreateDirectory(folder);
 }
 
+JsonWriterOptions writerOptions = new JsonWriterOptions { Indented = true };
+
 await ExtractSprites(folder);
 
 async Task ExtractSprites(string folder)
@@ -41,6 +46,7 @@ async Task ExtractSprites(string folder)
     IList<UndertaleSprite> sprites = new List<UndertaleSprite> { };
     foreach (UndertaleSprite sprite in Data.Sprites)
 	{
+		// horrible but don't care enough to do something about it
 		if (!sprite.Name.Content.StartsWith("spr_player") &&
 			!sprite.Name.Content.StartsWith("spr_snick_") &&
 			!sprite.Name.Content.StartsWith("spr_bombpep") &&
@@ -130,4 +136,17 @@ void ExtractSprite(UndertaleSprite sprite, string folder, TextureWorker worker)
     }
     gif.Optimize();
     gif.Write(Path.Join(folder, sprite.Name.Content + ".gif"));
+	
+	// write JSON for sprite origins
+	using MemoryStream stream = new MemoryStream();
+    using Utf8JsonWriter writer = new Utf8JsonWriter(stream, writerOptions);
+    writer.WriteStartObject();
+	
+	writer.WriteNumber("OriginX", sprite.OriginX);
+    writer.WriteNumber("OriginY", sprite.OriginY);
+	
+	writer.WriteEndObject();
+    writer.Flush();
+	
+    File.WriteAllBytes(Path.Join(folder, sprite.Name.Content + ".json"), stream.ToArray());
 }
