@@ -11,6 +11,11 @@
 // The original script was taken from here:
 // https://github.com/XDOneDude/UndertaleModToolCE/
 
+// 2026-05-01: updated writerOptions to disable indents by default
+// + use 1 tab for indentation
+// + check for useIndent file to enable it
+// + cleanup and removal of unnecessary stuff
+
 using System;
 using System.IO;
 using System.Text;
@@ -23,84 +28,70 @@ using UndertaleModLib.Util;
 EnsureDataLoaded();
 
 string outputPath = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedRooms\\";
-if (outputPath == null) throw new ScriptException("The room exporter's output path was not set.");
+string roomPath = Path.Combine(outputPath, "Rooms");
+string codePath = Path.Combine(outputPath, "Code");
 
-Directory.CreateDirectory(Path.Combine(outputPath, "Rooms"));
-string roomOutputPath = Path.Combine(outputPath, "Rooms");
-
-Directory.CreateDirectory(Path.Combine(outputPath, "Code"));
-string codeFolder = Path.Combine(outputPath, "Code");
+if (!Directory.Exists(roomPath))
+	Directory.CreateDirectory(roomPath);
+if (!Directory.Exists(codePath))
+	Directory.CreateDirectory(codePath);
 
 GlobalDecompileContext globalDecompileContext = new(Data);
 Underanalyzer.Decompiler.IDecompileSettings decompilerSettings = Data.ToolInfo.DecompilerSettings;
 
-int failed = 0;
+JsonWriterOptions writerOptions = new JsonWriterOptions {
+	Indented = false,
+	IndentCharacter = '\t',
+	IndentSize = 1
+};
 
-JsonWriterOptions writerOptions = new JsonWriterOptions { Indented = true };
+if (File.Exists($"{AppDomain.CurrentDomain.BaseDirectory}useIndent"))
+	writerOptions.Indented = true;
+
 foreach (UndertaleRoom room in Data.Rooms)
 {
     if (room != null)
     {
-        try
-        {
-            WriteRoomToJson(room);
-        }
-        catch (Exception e)
-        {
-            throw e;
-        }
+        try { WriteRoomToJson(room); }
+        catch (Exception e) { throw e; }
     }
 }
 
 void WriteString(Utf8JsonWriter writer, string propertyName, UndertaleString stringToWrite)
 {
-    if (stringToWrite?.Content == null)
-        writer.WriteNull(propertyName);
-    else
-        writer.WriteString(propertyName, stringToWrite.Content);
+    if (stringToWrite?.Content == null) { writer.WriteNull(propertyName); }
+    else { writer.WriteString(propertyName, stringToWrite.Content); }
 }
 
-
 // TODO: Use custom enum encoders
-
 void WriteRoomToJson(UndertaleRoom room)
 {
-	// Writing creation code of the room
-	if (room.CreationCodeId != null) {
+	// Write creation code of the room
+	if (room.CreationCodeId != null)
 		DumpCode(room.CreationCodeId);
-	}
 	
     using MemoryStream stream = new MemoryStream();
     using Utf8JsonWriter writer = new Utf8JsonWriter(stream, writerOptions);
+	ScriptMessage($"Exporting room {room.Name}");
+	
     writer.WriteStartObject();
+	
     // Params
+	ScriptMessage($"--Writing room params");
     WriteString(writer, "name", room.Name);
-    WriteString(writer, "caption", room.Caption);
     writer.WriteNumber("width", room.Width);
     writer.WriteNumber("height", room.Height);
-    writer.WriteNumber("speed", room.Speed);
-    writer.WriteBoolean("persistent", room.Persistent);
     writer.WriteNumber("background_color", room.BackgroundColor ^ 0xFF000000); // remove alpha (BG color doesn't have alpha)
     writer.WriteBoolean("draw_background_color", room.DrawBackgroundColor);
-
-    // GMS 2 Params
     WriteString(writer, "creation_code_id", room.CreationCodeId?.Name);
-    writer.WriteNumber("flags", Convert.ToInt32(room.Flags));
-    writer.WriteBoolean("world", room.World);
-    writer.WriteNumber("top", room.Top);
-    writer.WriteNumber("left", room.Left);
-    writer.WriteNumber("right", room.Right);
-    writer.WriteNumber("bottom", room.Bottom);
-    writer.WriteNumber("gravity_x", room.GravityX);
-    writer.WriteNumber("gravity_y", room.GravityY);
-    writer.WriteNumber("meters_per_pixel", room.MetersPerPixel);
 
     // Now the part that sucks
 
     // Backgrounds
     writer.WriteStartArray("backgrounds");
-    if (room.Backgrounds != null)
+    if (room.Backgrounds != null && !Data.IsGameMaker2())
     {
+		ScriptMessage("--Writing GMS1 background data");
         foreach (UndertaleRoom.Background bg in room.Backgrounds)
         {
             writer.WriteStartObject();
@@ -122,48 +113,18 @@ void WriteRoomToJson(UndertaleRoom room)
     }
     writer.WriteEndArray();
 
-    // Views
-    writer.WriteStartArray("views");
-    if (room.Views != null)
-    {
-        foreach (UndertaleRoom.View view in room.Views)
-        {
-            writer.WriteStartObject();
-            if (view != null)
-            {
-                writer.WriteBoolean("enabled", view.Enabled);
-                writer.WriteNumber("view_x", view.ViewX);
-                writer.WriteNumber("view_y", view.ViewY);
-                writer.WriteNumber("view_width", view.ViewWidth);
-                writer.WriteNumber("view_height", view.ViewHeight);
-                writer.WriteNumber("port_x", view.PortX);
-                writer.WriteNumber("port_y", view.PortY);
-                writer.WriteNumber("port_width", view.PortWidth);
-                writer.WriteNumber("port_height", view.PortHeight);
-                writer.WriteNumber("border_x", view.BorderX);
-                writer.WriteNumber("border_y", view.BorderY);
-                writer.WriteNumber("speed_x", view.SpeedX);
-                writer.WriteNumber("speed_y", view.SpeedY);
-                WriteString(writer, "object_id", view.ObjectId?.Name);
-            }
-            writer.WriteEndObject();
-        }
-    }
-    writer.WriteEndArray();
-
     // GameObjects
     writer.WriteStartArray("game_objects");
-    if (room.GameObjects != null)
+    if (room.GameObjects != null && !Data.IsGameMaker2())
     {
+		ScriptMessage("--Writing GMS1 game objects data");
         foreach (UndertaleRoom.GameObject go in room.GameObjects)
         {
-			// Writing creation code and pre create code of every object
-			if (go.CreationCode != null) {
+			// Write creation code and pre create code of every object
+			if (go.CreationCode != null)
 				DumpCode(go.CreationCode);
-			}
-			if (go.PreCreateCode != null) {
+			if (go.PreCreateCode != null)
 				DumpCode(go.PreCreateCode);
-			}
 			
             writer.WriteStartObject();
             if (go != null)
@@ -171,7 +132,6 @@ void WriteRoomToJson(UndertaleRoom room)
                 writer.WriteNumber("x", go.X);
                 writer.WriteNumber("y", go.Y);
                 WriteString(writer, "object_definition", go.ObjectDefinition?.Name);
-                writer.WriteNumber("instance_id", go.InstanceID);
                 WriteString(writer, "creation_code", go.CreationCode?.Name);
                 writer.WriteNumber("scale_x", go.ScaleX);
                 writer.WriteNumber("scale_y", go.ScaleY);
@@ -188,8 +148,9 @@ void WriteRoomToJson(UndertaleRoom room)
 
     // Tiles
     writer.WriteStartArray("tiles");
-    if (room.Tiles != null)
+    if (room.Tiles != null && !Data.IsGameMaker2())
     {
+		ScriptMessage("--Writing GMS1 tile data");
         foreach (UndertaleRoom.Tile tile in room.Tiles)
         {
             writer.WriteStartObject();
@@ -205,7 +166,6 @@ void WriteRoomToJson(UndertaleRoom room)
                 writer.WriteNumber("width", tile.Width);
                 writer.WriteNumber("height", tile.Height);
                 writer.WriteNumber("tile_depth", tile.TileDepth);
-                writer.WriteNumber("instance_id", tile.InstanceID);
                 writer.WriteNumber("scale_x", tile.ScaleX);
                 writer.WriteNumber("scale_y", tile.ScaleY);
                 writer.WriteNumber("color", tile.Color);
@@ -219,16 +179,18 @@ void WriteRoomToJson(UndertaleRoom room)
     // This is the part that super sucks
 
     writer.WriteStartArray("layers");
-    if (room.Layers != null)
+    if (room.Layers != null && Data.IsGameMaker2())
     {
+		ScriptMessage("--Writing layers");
         foreach (UndertaleRoom.Layer layer in room.Layers)
         {
             writer.WriteStartObject();
             if (layer != null)
             {
-                //layer params
+				ScriptMessage($"--Writing layer {layer.LayerName}, type {layer.LayerType}");
+				
+                // Layer params
                 WriteString(writer, "layer_name", layer.LayerName);
-                writer.WriteNumber("layer_id", layer.LayerId);
                 writer.WriteNumber("layer_type", Convert.ToInt32(layer.LayerType));
                 writer.WriteNumber("layer_depth", layer.LayerDepth);
                 writer.WriteNumber("x_offset", layer.XOffset);
@@ -258,6 +220,7 @@ void WriteRoomToJson(UndertaleRoom room)
                             writer.WriteNumber("animation_speed_type", Convert.ToInt32(layerData.AnimationSpeedType));
                             break;
                         }
+						
                         case UndertaleRoom.LayerType.Instances:
                         {
                             UndertaleRoom.Layer.LayerInstancesData layerData = (UndertaleRoom.Layer.LayerInstancesData) layer.Data;
@@ -267,13 +230,18 @@ void WriteRoomToJson(UndertaleRoom room)
                             {
                                 foreach (UndertaleRoom.GameObject instance in layerData.Instances)
                                 {
+									// Write creation code and pre create code of every object
+									if (instance.CreationCode != null)
+										DumpCode(instance.CreationCode);
+									if (instance.PreCreateCode != null)
+										DumpCode(instance.PreCreateCode);
+									
                                     writer.WriteStartObject();
                                     if (instance != null)
                                     {
                                         writer.WriteNumber("x", instance.X);
                                         writer.WriteNumber("y", instance.Y);
                                         WriteString(writer, "object_definition", instance.ObjectDefinition?.Name);
-                                        writer.WriteNumber("instance_id", instance.InstanceID);
                                         WriteString(writer, "creation_code", instance.CreationCode?.Name);
                                         writer.WriteNumber("scale_x", instance.ScaleX);
                                         writer.WriteNumber("scale_y", instance.ScaleY);
@@ -289,6 +257,7 @@ void WriteRoomToJson(UndertaleRoom room)
                             writer.WriteEndArray();
                             break;
                         }
+						
                         // Awful^3
                         case UndertaleRoom.LayerType.Assets:
                         {
@@ -312,7 +281,6 @@ void WriteRoomToJson(UndertaleRoom room)
                                         writer.WriteNumber("width", tile.Width);
                                         writer.WriteNumber("height", tile.Height);
                                         writer.WriteNumber("tile_depth", tile.TileDepth);
-                                        writer.WriteNumber("instance_id", tile.InstanceID);
                                         writer.WriteNumber("scale_x", tile.ScaleX);
                                         writer.WriteNumber("scale_y", tile.ScaleY);
                                         writer.WriteNumber("color", tile.Color);
@@ -401,6 +369,7 @@ void WriteRoomToJson(UndertaleRoom room)
                             writer.WriteEndArray();
                             break;
                         }
+						
                         case UndertaleRoom.LayerType.Tiles:
                         {
                             UndertaleRoom.Layer.LayerTilesData layerData = (UndertaleRoom.Layer.LayerTilesData) layer.Data;
@@ -417,11 +386,7 @@ void WriteRoomToJson(UndertaleRoom room)
                                 {
                                     writer.WriteStartArray();
                                     foreach (uint tileId in tile)
-                                    {
-                                        writer.WriteStartObject();
-                                        writer.WriteNumber("id", tileId);
-                                        writer.WriteEndObject();
-                                    }
+                                        writer.WriteNumberValue(tileId);
                                     writer.WriteEndArray();
                                 }
                             }
@@ -439,54 +404,41 @@ void WriteRoomToJson(UndertaleRoom room)
 
     writer.WriteEndObject();
     writer.Flush();
-
-    File.WriteAllBytes(Path.Join(roomOutputPath, room.Name.Content) + ".json", stream.ToArray());
+	
+	ScriptMessage($"--Finished writing {room.Name}");
+    File.WriteAllBytes(Path.Join(roomPath, room.Name.Content) + ".json", stream.ToArray());
 }
 
 void DumpCode(UndertaleCode code)
 {
-    string path = Path.Combine(codeFolder, code.Name.Content + ".gml");
+    string path = Path.Combine(codePath, code.Name.Content + ".gml");
     if (code.ParentEntry == null)
     {
         try
         {
-			File.WriteAllText(path, (code != null 
-                ? new Underanalyzer.Decompiler.DecompileContext(globalDecompileContext, code, decompilerSettings).DecompileToString() 
-                : ""));
+			string str = "";
+			if (code != null)
+				str = new Underanalyzer.Decompiler.DecompileContext(globalDecompileContext, code, decompilerSettings).DecompileToString();
+			File.WriteAllText(path, str);
         }
         catch (Exception e)
-        {
-            if (!(Directory.Exists(Path.Combine(codeFolder, "Failed"))))
-            {
-                Directory.CreateDirectory(Path.Combine(codeFolder, "Failed"));
-            }
-            path = Path.Combine(codeFolder, "Failed", code.Name.Content + ".gml");
-            File.WriteAllText(path, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
-            failed += 1;
-        }
+		{ ScriptMessage($"Decompilation failed for {code.Name}!"); }
     }
     else
     {
-        if (!(Directory.Exists(Path.Combine(codeFolder, "Duplicates"))))
-        {
-            Directory.CreateDirectory(Path.Combine(codeFolder, "Duplicates"));
-        }
+		string duplicatesPath = Path.Combine(codePath, "Duplicates");
+        if (!Directory.Exists(duplicatesPath))
+            Directory.CreateDirectory(duplicatesPath);
+		
         try
         {
-            path = Path.Combine(codeFolder, "Duplicates", code.Name.Content + ".gml");
-			File.WriteAllText(path, (code != null 
-                ? new Underanalyzer.Decompiler.DecompileContext(globalDecompileContext, code, decompilerSettings).DecompileToString() 
-                : ""));
+            path = Path.Combine(duplicatesPath, code.Name.Content + ".gml");
+			
+			string str = "";
+			if (code != null)
+				str = new Underanalyzer.Decompiler.DecompileContext(globalDecompileContext, code, decompilerSettings).DecompileToString();
+			File.WriteAllText(path, str);
         }
-        catch (Exception e)
-        {
-            if (!(Directory.Exists(Path.Combine(codeFolder, "Duplicates", "Failed"))))
-            {
-                Directory.CreateDirectory(Path.Combine(codeFolder, "Duplicates", "Failed"));
-            }
-            path = Path.Combine(codeFolder, "Duplicates", "Failed", code.Name.Content + ".gml");
-            File.WriteAllText(path, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
-            failed += 1;
-        }
+        catch (Exception e) { ScriptMessage($"Decompilation failed for {code.Name}!"); }
     }
 }

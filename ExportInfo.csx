@@ -9,15 +9,15 @@ using UndertaleModLib.Util;
 
 EnsureDataLoaded();
 
-string timestampPath = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedRooms\\timestamp.txt";
-string namePath = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedRooms\\name.txt";
+string roomPath = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedRooms\\";
+if (!Directory.Exists(roomPath))
+	Directory.CreateDirectory(roomPath);
+
+string timestampPath = Path.Combine(roomPath, "timestamp.txt");
+string namePath = Path.Combine(roomPath, "name.txt");
 
 using (StreamWriter writer = new StreamWriter(timestampPath))
-{
-	writer.WriteLine(Data.GeneralInfo.Timestamp.ToString());
-}
+{ writer.WriteLine(Data.GeneralInfo.Timestamp.ToString()); }
 
 using (StreamWriter writer = new StreamWriter(namePath))
-{
-	writer.WriteLine(Data.GeneralInfo.Name.Content);
-}
+{ writer.WriteLine(Data.GeneralInfo.Name.Content); }

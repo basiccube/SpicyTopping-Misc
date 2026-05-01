@@ -1,6 +1,8 @@
 ﻿// ExportAllTilesets.csx - but with no user input
 // and some other info gets exported as well
 
+// 2026-05-01: cleanup
+
 using System.Text;
 using System;
 using System.IO;
@@ -12,40 +14,37 @@ using UndertaleModLib.Util;
 
 EnsureDataLoaded();
 
-string texFolder = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedTilesets\\";
-if (texFolder is null)
-{
+string tilePath = $"{AppDomain.CurrentDomain.BaseDirectory}ExportedTilesets\\";
+if (tilePath is null)
     return;
-}
-if (!Directory.Exists(texFolder))
-{
-	Directory.CreateDirectory(texFolder);
-}
 
-JsonWriterOptions writerOptions = new JsonWriterOptions { Indented = true };
+if (!Directory.Exists(tilePath))
+	Directory.CreateDirectory(tilePath);
+
+JsonWriterOptions writerOptions = new JsonWriterOptions {
+	Indented = true,
+	IndentCharacter = '\t',
+	IndentSize = 1
+};
 
 SetProgressBar(null, "Tilesets", 0, Data.Backgrounds.Count);
 StartProgressBarUpdater();
 
 TextureWorker worker = null;
 using (worker = new())
-{
-    await DumpTilesets();
-}
+{ await DumpTilesets(); }
 
 await StopProgressBarUpdater();
 HideProgressBar();
 
 async Task DumpTilesets()
-{
-    await Task.Run(() => Parallel.ForEach(Data.Backgrounds, DumpTileset));
-}
+{ await Task.Run(() => Parallel.ForEach(Data.Backgrounds, DumpTileset)); }
 
 void DumpTileset(UndertaleBackground tileset)
 {
     if (tileset?.Texture is not null)
     {
-        worker.ExportAsPNG(tileset.Texture, Path.Combine(texFolder, $"{tileset.Name.Content}.png"));
+        worker.ExportAsPNG(tileset.Texture, Path.Combine(tilePath, $"{tileset.Name.Content}.png"));
 		
 		// write JSON
 		using MemoryStream stream = new MemoryStream();
@@ -61,7 +60,7 @@ void DumpTileset(UndertaleBackground tileset)
 		writer.WriteEndObject();
 		writer.Flush();
 		
-		File.WriteAllBytes(Path.Combine(texFolder, $"{tileset.Name.Content}.json"), stream.ToArray());
+		File.WriteAllBytes(Path.Combine(tilePath, $"{tileset.Name.Content}.json"), stream.ToArray());
     }
 
     IncrementProgressParallel();
